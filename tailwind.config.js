@@ -42,37 +42,7 @@ module.exports = {
 			}),
 
 			colors: {
-				main: '#FF6900',
-				'main-light': '#FFEDE0',
-				'main-bright': '#FF8F44',
-				gray: {
-					text: '#8F8F8F',
-					stroke: '#E0E0E0',
-					light: '#F5F5F5',
-					bright: '#FCFCFC',
-					lighter: '#F8F8F8',
-				},
-				green: {
-					my: '#58BF68',
-					'market-active': '#428C4B',
-					text: '#428C4B',
-					light: '#D9F8DD',
-				},
-				purple: {
-					my: '#7000FF',
-				},
-				blue: {
-					my: '#4152a4',
-				},
-				pink: {
-					my: '#f197a3',
-				},
-				red: {
-					my: '#FF0000',
-				},
-				orange: {
-					'market-inactive': '#B58200',
-				},
+				black: '#1E1E1E',
 			},
 			boxShadow: {
 				modal: '0px 0px 15px 0px rgba(0, 0, 0, 0.1)',
