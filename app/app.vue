@@ -1,90 +1,75 @@
 <template>
-	<div class="h-screen bg-black text-white flex justify-center items-center">
+	<div class="h-screen bg-black text-white flex justify-center items-center relative">
 		<div id="globeViz"></div>
+
+		<div class="absolute left-6 right-6 bottom-6 flex justify-center">
+			<div class="flex gap-4 items-center">
+				<button
+					@click="addHour(-1)"
+					class="px-6 py-3 bg-gray-700 rounded hover:bg-gray-600 leading-5 font-medium"
+				>
+					-1 hour
+				</button>
+				<span>
+					{{ new Date(dt).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }}
+				</span>
+				<button
+					@click="addHour(+1)"
+					class="px-6 py-3 bg-gray-700 rounded hover:bg-gray-600 leading-5 font-medium"
+				>
+					+1 hour
+				</button>
+			</div>
+		</div>
 	</div>
 </template>
 
 <script setup lang="ts">
 import { TextureLoader, ShaderMaterial, Vector2 } from 'https://esm.sh/three';
 import * as solar from 'https://esm.sh/solar-calculator';
+import { dayNightShader, getAltitude } from '~/constants';
 
 const coords = reactive({
-	lat: 43.65107,
-	lon: 108.2215,
+	lat: 0,
+	lon: 0,
 });
+const dt = ref(+new Date());
+const material = ref<ShaderMaterial | null>(null);
 
-onMounted(() => {
-	// Custom shader:  Blends night and day images to simulate day/night cycle
-	const dayNightShader = {
-		vertexShader: `
-			varying vec3 vNormal;
-			varying vec2 vUv;
-			void main() {
-				vNormal = normalize(normalMatrix * normal);
-				vUv = uv;
-				gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-			}
-		`,
-		fragmentShader: `
-			#define PI 3.141592653589793
-			uniform sampler2D dayTexture;
-			uniform sampler2D nightTexture;
-			uniform vec2 sunPosition;
-			uniform vec2 globeRotation;
-			varying vec3 vNormal;
-			varying vec2 vUv;
+const sunPosAt = (dt: number) => {
+	const day = new Date(+dt).setUTCHours(0, 0, 0, 0);
+	const t = solar.century(dt);
+	const longitude = ((day - dt) / 864e5) * 360 - 180;
+	return [longitude - solar.equationOfTime(t) / 4, solar.declination(t)];
+};
 
-			float toRad(in float a) {
-				return a * PI / 180.0;
-			}
+const updateSun = () => {
+	if (material.value) {
+		material.value.uniforms.sunPosition.value.set(...sunPosAt(dt.value));
+	}
+};
 
-			vec3 Polar2Cartesian(in vec2 c) { // [lng, lat]
-				float theta = toRad(90.0 - c.x);
-				float phi = toRad(90.0 - c.y);
-				return vec3( // x,y,z
-					sin(phi) * cos(theta),
-					cos(phi),
-					sin(phi) * sin(theta)
-				);
-			}
+const addHour = (h: number) => {
+	dt.value += h * 3600_000; // 1 час = 3600 сек = 3.6e6 ms
+	updateSun();
+};
 
-			void main() {
-				float invLon = toRad(globeRotation.x);
-				float invLat = -toRad(globeRotation.y);
-				mat3 rotX = mat3(
-					1, 0, 0,
-					0, cos(invLat), -sin(invLat),
-					0, sin(invLat), cos(invLat)
-				);
-				mat3 rotY = mat3(
-					cos(invLon), 0, sin(invLon),
-					0, 1, 0,
-					-sin(invLon), 0, cos(invLon)
-				);
-				vec3 rotatedSunDirection = rotX * rotY * Polar2Cartesian(sunPosition);
-				float intensity = dot(normalize(vNormal), normalize(rotatedSunDirection));
-				vec4 dayColor = texture2D(dayTexture, vUv);
-				vec4 nightColor = texture2D(nightTexture, vUv);
-				float blendFactor = smoothstep(-0.1, 0.1, intensity);
-				gl_FragColor = mix(nightColor, dayColor, blendFactor);
-			}
-      	`,
-	};
-
-	const sunPosAt = (dt: number) => {
-		const day = new Date(+dt).setUTCHours(0, 0, 0, 0);
-		const t = solar.century(dt);
-		const longitude = ((day - dt) / 864e5) * 360 - 180;
-		return [longitude - solar.equationOfTime(t) / 4, solar.declination(t)];
-	};
-
-	let dt = +new Date();
+onMounted(async () => {
+	await navigator.geolocation.getCurrentPosition(
+		pos => {
+			coords.lat = pos.coords.latitude;
+			coords.lon = pos.coords.longitude;
+		},
+		err => {
+			console.error(err);
+		},
+	);
 
 	const world = new Globe(document.getElementById('globeViz'));
 
 	Promise.all([new TextureLoader().loadAsync('/day.webp'), new TextureLoader().loadAsync('/night.webp')]).then(
 		([dayTexture, nightTexture]) => {
-			const material = new ShaderMaterial({
+			material.value = new ShaderMaterial({
 				uniforms: {
 					dayTexture: { value: dayTexture },
 					nightTexture: { value: nightTexture },
@@ -96,13 +81,29 @@ onMounted(() => {
 			});
 
 			world
-				.globeMaterial(material)
+				.globeMaterial(material.value)
 				.backgroundImageUrl('//cdn.jsdelivr.net/npm/three-globe/example/img/night-sky.png')
-				.pointOfView({ lat: coords.lat, lng: coords.lon, altitude: 1.5 }, 2000)
-				.onZoom(({ lng, lat }) => material.uniforms.globeRotation.value.set(lng, lat));
+				.pointOfView({ lat: coords.lat, lng: coords.lon, altitude: getAltitude() }, 1500)
+				.onZoom(({ lng, lat }: { lng: number; lat: number }) =>
+					material.value.uniforms.globeRotation.value.set(lng, lat),
+				);
 
-			dt = Date.now();
-			material.uniforms.sunPosition.value.set(...sunPosAt(dt));
+			if (coords.lat && coords.lon) {
+				world.htmlElementsData([{ lat: coords.lat, lng: coords.lon }]).htmlElement(() => {
+					const el = document.createElement('div');
+					el.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path fill="#780b16" d="M12 12q.825 0 1.413-.587T14 10t-.587-1.412T12 8t-1.412.588T10 10t.588 1.413T12 12m0 10q-4.025-3.425-6.012-6.362T4 10.2q0-3.75 2.413-5.975T12 2t5.588 2.225T20 10.2q0 2.5-1.987 5.438T12 22"/></svg>`;
+					el.style.transform = 'translate(-50%, -50%)';
+					return el;
+				});
+			}
+
+			dt.value = Date.now();
+			material.value.uniforms.sunPosition.value.set(...sunPosAt(dt.value));
+
+			window.addEventListener('resize', () => {
+				world.width([window.innerWidth]);
+				world.height([window.innerHeight]);
+			});
 		},
 	);
 });
