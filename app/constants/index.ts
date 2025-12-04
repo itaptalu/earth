@@ -59,4 +59,23 @@ const getAltitude = () => {
 	return window.innerWidth < 600 ? 5 : baseAlt;
 };
 
-export { dayNightShader, getAltitude };
+const getTime = (dt: number) => {
+	return new Date(dt).toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+};
+
+const getCoords = () =>
+	new Promise<{ lat: number; lon: number }>(resolve => {
+		navigator.geolocation.getCurrentPosition(
+			pos => {
+				console.log(pos);
+				resolve({
+					lat: pos.coords.latitude,
+					lon: pos.coords.longitude,
+				});
+			},
+
+			() => resolve({ lat: 43, lon: 76 }), // если ошибка — ставим 0 0
+		);
+	});
+
+export { dayNightShader, getAltitude, getTime, getCoords };

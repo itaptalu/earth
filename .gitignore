@@ -19,6 +19,8 @@ logs
 .idea
 
 # Local env files
+localhost.pem
+localhost-key.pem
 .env
 .env.*
 !.env.example

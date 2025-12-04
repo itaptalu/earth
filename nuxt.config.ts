@@ -6,4 +6,6 @@ export default defineNuxtConfig({
 	modules: ['@nuxt/icon', '@nuxt/image', '@nuxtjs/tailwindcss'],
 
 	app: { head: { script: [{ src: '//cdn.jsdelivr.net/npm/globe.gl' }] } },
+
+	devServer: { https: { key: './localhost-key.pem', cert: './localhost.pem' } },
 });
