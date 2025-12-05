@@ -54,6 +54,23 @@ const dayNightShader = {
     `,
 };
 
+const fieldNames = [
+	'airport_id',
+	'name',
+	'city',
+	'country',
+	'iata',
+	'icao',
+	'latitude',
+	'longitude',
+	'altitude',
+	'timezone',
+	'dst',
+	'tz_db',
+	'type',
+	'source',
+];
+
 const getAltitude = () => {
 	const baseAlt = 1.5;
 	return window.innerWidth < 600 ? 5 : baseAlt;
@@ -77,5 +94,58 @@ const getCoords = () =>
 			() => resolve({ lat: 43, lng: 76 }), // если ошибка — ставим 0 0
 		);
 	});
+const parseCSVLine = (line: string) => {
+	const result = [];
+	let current = '';
+	let inQuotes = false;
 
-export { dayNightShader, getAltitude, getTime, getCoords };
+	for (let i = 0; i < line.length; i++) {
+		const char = line[i];
+		const nextChar = line[i + 1];
+
+		if (char === '"') {
+			// Handle escaped quotes ("")
+			if (inQuotes && nextChar === '"') {
+				current += '"';
+				i++; // Skip next quote
+			} else {
+				inQuotes = !inQuotes;
+			}
+		} else if (char === ',' && !inQuotes) {
+			result.push(current);
+			current = '';
+		} else {
+			current += char;
+		}
+	}
+
+	result.push(current); // Add last field
+	return result;
+};
+function csvToAirportObject(csvLine: string) {
+	const fields = parseCSVLine(csvLine);
+	const result = {} as Airport;
+
+	fieldNames.forEach((fieldName: string, index: number) => {
+		const value = fields[index]!;
+		const key = fieldName as keyof Airport;
+
+		// Преобразование типов данных
+		switch (key) {
+			case 'airport_id':
+			case 'altitude':
+			case 'timezone':
+				result[key] = parseInt(value, 10);
+				break;
+			case 'latitude':
+			case 'longitude':
+				result[key] = parseFloat(value);
+				break;
+			default:
+				result[key] = value as string;
+		}
+	});
+
+	return result;
+}
+export { dayNightShader, getAltitude, getTime, getCoords, csvToAirportObject };

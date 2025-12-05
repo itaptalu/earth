@@ -14,6 +14,8 @@ import { TextureLoader, MeshPhongMaterial } from 'https://esm.sh/three';
 import Globe from 'https://esm.sh/globe.gl';
 import { getAltitude, getCoords } from '~/constants';
 
+const storeAirports = useStoreAirports();
+
 let world: any = null;
 const coords = reactive({ lat: 0, lng: 0 });
 const markers = reactive<{ lat: number; lng: number }[]>([]);
@@ -54,6 +56,10 @@ onBeforeMount(async () => {
 
 	window.addEventListener('resize', resize);
 	resize();
+});
+
+onMounted(async () => {
+	storeAirports.fetchAirports();
 });
 </script>
 
