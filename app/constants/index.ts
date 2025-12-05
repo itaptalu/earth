@@ -64,17 +64,17 @@ const getTime = (dt: number) => {
 };
 
 const getCoords = () =>
-	new Promise<{ lat: number; lon: number }>(resolve => {
+	new Promise<{ lat: number; lng: number }>(resolve => {
 		navigator.geolocation.getCurrentPosition(
 			pos => {
 				console.log(pos);
 				resolve({
 					lat: pos.coords.latitude,
-					lon: pos.coords.longitude,
+					lng: pos.coords.longitude,
 				});
 			},
 
-			() => resolve({ lat: 43, lon: 76 }), // если ошибка — ставим 0 0
+			() => resolve({ lat: 43, lng: 76 }), // если ошибка — ставим 0 0
 		);
 	});
 
