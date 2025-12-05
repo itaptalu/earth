@@ -23,7 +23,6 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onBeforeMount, watch } from 'vue';
 import { TextureLoader, ShaderMaterial, Vector2 } from 'https://esm.sh/three';
 import * as solar from 'https://esm.sh/solar-calculator';
 import Globe from 'https://esm.sh/globe.gl';
@@ -33,7 +32,6 @@ const dt = ref(Date.now());
 const material = ref<any>(null);
 let world: any = null;
 
-// Вычисляем позицию солнца
 const sunPosAt = (dt: number) => {
 	const day = new Date(dt).setUTCHours(0, 0, 0, 0);
 	const t = solar.century(dt);
@@ -41,20 +39,22 @@ const sunPosAt = (dt: number) => {
 	return [longitude - solar.equationOfTime(t) / 4, solar.declination(t)];
 };
 
-// Обновляем шейдер солнца
 const updateSun = () => {
 	if (material.value) {
 		material.value.uniforms.sunPosition.value.set(...sunPosAt(dt.value));
 	}
 };
 
-// Добавляем часы
 const addHour = (h: number) => {
 	dt.value += h * 3600_000;
 };
 
-// Watch для реактивного обновления солнца
-watch(dt, () => updateSun());
+const resize = () => {
+	world.width(window.innerWidth);
+	world.height(window.innerHeight);
+};
+
+watch(dt, updateSun);
 
 onBeforeMount(async () => {
 	const coords = await getCoords().catch(() => ({ lat: 0, lon: 0 }));
@@ -85,7 +85,6 @@ onBeforeMount(async () => {
 			if (material.value) material.value.uniforms.globeRotation.value.set(lng, lat);
 		});
 
-	// Добавляем HTML-маркер
 	if (coords.lat != null && coords.lon != null) {
 		world.htmlElementsData([{ lat: coords.lat, lng: coords.lon }]).htmlElement(() => {
 			const el = document.createElement('div');
@@ -96,11 +95,9 @@ onBeforeMount(async () => {
 	}
 
 	updateSun();
+});
 
-	const resize = () => {
-		world.width(window.innerWidth);
-		world.height(window.innerHeight);
-	};
+onMounted(() => {
 	window.addEventListener('resize', resize);
 	resize();
 });
